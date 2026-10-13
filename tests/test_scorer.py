@@ -1,0 +1,47 @@
+import pytest
+
+from src.frameworks import ENGAGEMENT_DIMENSIONS, CONTENT_PROFILE_TYPES
+from src.samples import SAMPLES
+from src.scorer import find_keywords, score, score_batch
+
+
+def test_whole_word_matching_avoids_substring_false_positives():
+    # "white" contains "hit", "because"/"bus" contain "us", "the" contains "he"
+    assert find_keywords("a white cat because the bus is late", ["hit", "us", "he"]) == []
+    assert find_keywords("a hit show for us", ["hit", "us"]) == ["hit", "us"]
+
+
+def test_phrases_and_special_tokens():
+    assert find_keywords("the #1 show. you won't believe it", ["#1", "you won't believe"]) == ["#1", "you won't believe"]
+    assert find_keywords("nominated for an emmy", ["Emmy"]) == ["emmy"]
+
+
+def test_neutral_text_scores_low():
+    r = score("This is a white cat because the bus is late.")
+    assert all(d.score < 10 for d in r.dimensions.values())
+    assert r.profile_type == "Balanced Engagement"
+
+
+def test_scores_are_bounded_and_complete():
+    for r in score_batch(SAMPLES):
+        assert set(r.dimensions) == set(ENGAGEMENT_DIMENSIONS)
+        assert 0 <= r.overall_score <= 100
+        assert all(0 <= d.score <= 100 for d in r.dimensions.values())
+        assert r.profile_type in CONTENT_PROFILE_TYPES
+        assert r.recommendations
+
+
+@pytest.mark.parametrize("dim,text", [
+    ("curiosity_gap", "What really happened? The secret behind the untold mystery, revealed."),
+    ("social_proof", "The award-winning, critically acclaimed hit loved by 4 million viewers."),
+    ("scarcity_exclusivity", "World premiere: an exclusive first look, limited series, early access."),
+])
+def test_dimension_responds_to_its_cues(dim, text):
+    r = score(text)
+    assert r.dimensions[dim].score >= 40
+    assert r.dimensions[dim].score == max(d.score for d in r.dimensions.values())
+
+
+def test_deterministic():
+    text = SAMPLES["News Headline"]["text"]
+    assert score(text).overall_score == score(text).overall_score

@@ -4,6 +4,7 @@ Maps scientific theories to measurable content signals.
 
 Theoretical grounding:
 - Russell, J. A. (1980). A circumplex model of affect. Journal of Personality and Social Psychology.
+- Berger, J. & Milkman, K. L. (2012). What makes online content viral? Journal of Marketing Research.
 - Loewenstein, G. (1994). The psychology of curiosity: A review and reinterpretation.
 - Cialdini, R. B. (1984). Influence: The Psychology of Persuasion.
 - Green, M. C. & Brock, T. C. (2000). The role of transportation in the persuasiveness of narratives.
@@ -17,9 +18,9 @@ ENGAGEMENT_DIMENSIONS = {
         "label": "Emotional Arousal",
         "short": "Arousal",
         "theory": "Russell's Circumplex Model (1980)",
-        "description": "High-activation emotional states — both positive (joy, excitement) and "
-                       "negative (anger, fear) — are the strongest predictors of content sharing. "
-                       "Low-arousal content, regardless of valence, tends to be forgotten.",
+        "description": "High-activation emotional states — both positive (awe, excitement) and "
+                       "negative (anger, anxiety) — were linked to more sharing of news articles "
+                       "(Berger & Milkman, 2012), while low-arousal states such as sadness were linked to less.",
         "high_positive": [
             "amazing", "incredible", "love", "excited", "thrilling", "breathtaking",
             "wonderful", "inspiring", "brilliant", "extraordinary", "magnificent",
@@ -28,7 +29,7 @@ ENGAGEMENT_DIMENSIONS = {
         "high_negative": [
             "shocking", "outrageous", "devastating", "horrifying", "terrifying",
             "disturbing", "infuriating", "alarming", "appalling", "tragic",
-            "explosive", "brutal", "catastrophic", "explosive",
+            "explosive", "brutal", "catastrophic",
         ],
         "color": "#E74C3C",
         "weight": 1.3,
@@ -61,7 +62,7 @@ ENGAGEMENT_DIMENSIONS = {
             "millions", "thousands", "loved by", "praised by", "recommended",
             "popular", "hit", "phenomenon", "celebrated", "landmark",
             "critics", "audience favorite", "must-see", "everyone is talking",
-            "season", "series", "Emmy", "Oscar", "BAFTA",
+            "season", "series", "emmy", "oscar", "bafta",
         ],
         "color": "#3498DB",
         "weight": 0.9,
@@ -70,15 +71,15 @@ ENGAGEMENT_DIMENSIONS = {
         "label": "Narrative Transport",
         "short": "Narrative",
         "theory": "Green & Brock Transportation Model (2000)",
-        "description": "Story-based content achieves deeper cognitive and emotional engagement "
-                       "because narrative structure activates multiple brain regions simultaneously. "
-                       "Transported audiences are more persuaded, more recalled, and more likely to share.",
+        "description": "Story-based content can absorb the audience into the narrative world. "
+                       "Green & Brock found that more transported readers showed more story-consistent "
+                       "beliefs; story markers, protagonists and conflict are text cues for that structure.",
         "story_markers": [
             "story", "journey", "discover", "when", "then", "finally", "realized",
             "never expected", "true story", "based on", "real", "life changed",
             "one day", "everything changed", "survived", "overcome", "grew up",
         ],
-        "protagonist_markers": ["i ", "she ", "he ", "they ", "her ", "his "],
+        "protagonist_markers": ["i", "she", "he", "they", "her", "his"],
         "conflict_markers": [
             "but", "however", "until", "challenge", "struggle", "obstacle",
             "against all odds", "despite", "impossible", "crisis", "threat",
@@ -93,13 +94,13 @@ ENGAGEMENT_DIMENSIONS = {
         "description": "Content that mirrors or affirms the viewer's existing or aspirational "
                        "self-concept creates a sense of personal relevance. Second-person language, "
                        "audience-specific framing, and aspirational identity cues all drive this effect.",
-        "second_person": ["you ", "your ", "for you", "designed for you", "people like you"],
+        "second_person": ["you", "your", "for you", "designed for you", "people like you"],
         "aspirational": [
             "become", "transform", "master", "achieve", "grow", "level up",
             "unlock", "elevate", "thrive", "lead", "build", "create",
         ],
         "community": [
-            "community", "belong", "together", "us", "we ", "our ", "join",
+            "community", "belong", "together", "us", "we", "our", "join",
             "connect", "tribe", "movement", "family",
         ],
         "color": "#1ABC9C",

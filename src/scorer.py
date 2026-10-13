@@ -5,6 +5,7 @@ Scores media content across seven psychological engagement dimensions.
 
 from __future__ import annotations
 from dataclasses import dataclass, field
+from functools import lru_cache
 from typing import Dict, List
 import re
 
@@ -43,8 +44,26 @@ def _norm(text: str) -> str:
     return re.sub(r"\s+", " ", text.lower().strip())
 
 
+@lru_cache(maxsize=None)
+def _pattern(keyword: str) -> "re.Pattern[str]":
+    # Whole-word / whole-phrase match: "us" must not match "because", "hit" not "white".
+    kw = re.escape(keyword.strip().lower())
+    return re.compile(rf"(?<![\w#]){kw}(?!\w)")
+
+
+def find_keywords(text: str, keywords: List[str]) -> List[str]:
+    """Distinct keywords (in list order) that occur in `text` as whole words/phrases."""
+    seen, matched = set(), []
+    for kw in keywords:
+        key = kw.strip().lower()
+        if key not in seen and _pattern(key).search(text):
+            seen.add(key)
+            matched.append(key)
+    return matched
+
+
 def _kw_score(text: str, keywords: List[str], scale: float = 1.0) -> tuple:
-    matched = [kw for kw in keywords if kw in text]
+    matched = find_keywords(text, keywords)
     ratio = len(matched) / max(len(keywords), 1)
     raw = min(ratio * 400 * scale, 100)
     return raw, matched
@@ -101,7 +120,7 @@ def _score_social_proof(text: str) -> DimensionScore:
 def _score_narrative(text: str) -> DimensionScore:
     dim = ENGAGEMENT_DIMENSIONS["narrative_transport"]
     story_score, story_matched = _kw_score(text, dim["story_markers"])
-    proto_count = sum(1 for m in dim["protagonist_markers"] if m in text)
+    proto_count = len(find_keywords(text, dim["protagonist_markers"]))
     conflict_score, conflict_matched = _kw_score(text, dim["conflict_markers"])
 
     combined = (
@@ -189,7 +208,7 @@ def _build_recommendations(dimensions: Dict[str, DimensionScore]) -> List[str]:
                     "create an information gap that compels engagement.")
     if scored["narrative_transport"] < 25:
         recs.append("Introduce a protagonist or story arc — even a single character's "
-                    "journey dramatically increases audience transport.")
+                    "journey gives the audience something to be transported into.")
     if scored["social_proof"] < 20:
         recs.append("Add validation signals: audience size, critical reception, or "
                     "award recognition to reduce perceived risk for new viewers.")
@@ -198,8 +217,8 @@ def _build_recommendations(dimensions: Dict[str, DimensionScore]) -> List[str]:
                     "(purpose, connection, growth) to increase lasting resonance.")
 
     if not recs:
-        recs.append("Strong engagement profile. Consider A/B testing emphasis on your "
-                    "top two dimensions to maximize platform-specific performance.")
+        recs.append("Several dimensions are already active. Consider A/B testing emphasis on your "
+                    "top two dimensions with a real audience.")
     return recs
 
 
