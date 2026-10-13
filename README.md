@@ -1,160 +1,151 @@
 # Content Psychology Analyzer
 
-**Core question:** Why does some content captivate audiences while identical content is ignored — and can we measure it before publishing?
+> **Resumen:** Califica textos de medios (sinopsis, titulares, posts) en siete dimensiones psicológicas de enganche, cada una ligada a una teoría publicada, y compara dos redacciones del mismo mensaje para mostrar qué consideraciones enfatiza cada una (teoría del encuadre de Chong y Druckman, 2007). Es una heurística transparente basada en palabras clave: describe el texto, no mide ni predice la respuesta del público.
 
-This tool scores media content across seven psychological engagement dimensions grounded in peer-reviewed research. It classifies content into engagement profile types and generates strategic recommendations for OTT platforms, content teams, and media strategists.
+*Part of Giovanni Oliveira's Hybrid Intelligence portfolio — see https://github.com/Neckr0ik*
+
+**Core question:** which psychological mechanisms does a piece of media copy lean on, and how does a rewrite change that emphasis?
+
+The tool scores text on seven engagement dimensions. Each one is grounded in a published theory and turned into explicit text cues (keywords, VADER tone, questions, audience numbers). From the scores it assigns a profile type and suggests edits. It can also **compare two wordings of the same message** and report which dimensions differ: a public, heuristic relative of message testing.
 
 ---
 
 ## Sample output
 
-```
-Content Psychology Analyzer
-=================================================================
+Real output of `python main.py --no-charts` (excerpt):
 
+```
   Thriller Drama (OTT)  [Streaming Series]
-  [###############     ] 72/100  |  Viral Emotion Driver
-  Top dimensions: Arousal:74 | Social:61 | Curiosity:48
-  Tip: Add a protagonist journey or story arc to increase narrative transport.
+  [########            ] 41/100  |  Prestige Signal
+  Top dimensions: Social:65 | Arousal:30 | Narrative:28
 
   LinkedIn Resilience Post  [Social Media (Professional)]
-  [#############       ] 66/100  |  Meaning-Led Content
-  Top dimensions: PERMA:71 | Identity:68 | Narrative:55
+  [##########          ] 55/100  |  Community Builder
+  Top dimensions: Identity:74 | PERMA:54 | Arousal:35
 
   Late Night Talk Show  [Entertainment / Talk]
-  [###########         ] 55/100  |  Curiosity Engine
-  Top dimensions: Curiosity:65 | Social:42 | Arousal:38
+  [############        ] 63/100  |  Curiosity Engine
 ```
 
+Framing comparison, `python main.py --framing-demo` (excerpt):
+
+```
+[Streaming series launch]
+  Dimension                    A     B    B-A
+  Scarcity / Exclusivity       0    75    +75  <- differs
+  Social Proof                 0    52    +52  <- differs
+  Curiosity Gap                0    49    +49  <- differs
+  PERMA Wellbeing             16     0    -16  <- differs
+  ...
+  Findings:
+    - Scarcity / Exclusivity: B emphasises this more than A by 75 pts (cues only in B: limited series, premiere, only, world premiere). [Prospect Theory — Kahneman & Tversky (1979)]
+    - Social Proof: B emphasises this more than A by 52 pts (cues only in B: award, everyone is talking, series). ...
+```
+
+The scores show cue density on a 0–100 scale. They are not predicted engagement rates.
+
 ---
 
-## The seven dimensions of psychological engagement
+## The seven dimensions
 
-Content does not succeed because it is "good." It succeeds because it activates specific psychological mechanisms that evolved to capture and hold human attention.
-
-| Dimension | Theoretical Basis | What It Measures |
+| Dimension | Theoretical basis | Text cues used |
 |:---|:---|:---|
-| **Emotional Arousal** | Russell's Circumplex Model (1980) | High-activation emotion — the primary predictor of sharing behavior |
-| **Curiosity Gap** | Loewenstein's Information Gap Theory (1994) | Partial information creating aversive uncertainty that compels engagement |
-| **Social Proof** | Cialdini's Principles of Influence (1984) | Signals of others' engagement reducing the perceived risk of viewing |
-| **Narrative Transport** | Green & Brock Transportation Model (2000) | Story structure activating multi-region brain engagement and recall |
-| **Identity Resonance** | Self-Concept Theory (Markus & Wurf, 1987) | Content mirroring the audience's existing or aspirational self-concept |
-| **PERMA Wellbeing** | Seligman's PERMA Model (2011) | Alignment with the five pillars of human flourishing |
-| **Scarcity / Exclusivity** | Prospect Theory (Kahneman & Tversky, 1979) | Benign scarcity signals elevating perceived content value |
+| **Emotional Arousal** | Russell (1980) circumplex; arousal and sharing in Berger & Milkman (2012) | High-arousal words + VADER compound magnitude |
+| **Curiosity Gap** | Loewenstein (1994) information-gap theory | Teaser phrases, questions |
+| **Social Proof** | Cialdini (1984) | Awards, acclaim, audience numbers ("4 million viewers") |
+| **Narrative Transport** | Green & Brock (2000) | Story markers, protagonists, conflict words |
+| **Identity Resonance** | Markus & Wurf (1987) self-concept | Second person, aspirational and community language |
+| **PERMA Wellbeing** | Seligman (2011) | Words for the five PERMA pillars, plus a bonus for covering several |
+| **Scarcity / Exclusivity** | Kahneman & Tversky (1979) loss aversion | Premiere, exclusive, limited, first look |
+
+Keywords match as **whole words or phrases**, so "us" does not match "because" and "hit" does not match "white".
+
+## Profile types
+
+| Profile | Rule (on the scores above) |
+|:---|:---|
+| Viral Emotion Driver | Arousal is the top dimension and > 55 |
+| Curiosity Engine | Curiosity Gap is top and > 45 |
+| Narrative Immersive | Narrative Transport is top and > 45 |
+| Meaning-Led Content | PERMA top, Identity second |
+| Community Builder | Identity top, PERMA second |
+| Prestige Signal | Social Proof or Scarcity is top |
+| Balanced Engagement | none of the above |
+
+The profile names are labels for score patterns. They are not validated audience segments.
 
 ---
 
-## Engagement profile types
+## Message-framing comparison
 
-The analyzer classifies each content piece into one of seven strategic profiles:
+Chong & Druckman (2007) define a frame by the **considerations a message emphasises**. Two wordings of the same facts can make different considerations salient and so change how people weigh an issue. `--compare` treats each dimension as one family of considerations and reports:
 
-| Profile Type | Dominant Signal | Typical Context |
-|:---|:---|:---|
-| **Viral Emotion Driver** | Emotional Arousal > 55 | News, social clips, trailers |
-| **Curiosity Engine** | Curiosity Gap > 45 | Headlines, teasers, episodic TV |
-| **Narrative Immersive** | Narrative Transport > 45 | Prestige drama, documentary |
-| **Community Builder** | Identity Resonance + PERMA | Reality TV, lifestyle brands |
-| **Prestige Signal** | Social Proof + Scarcity | Awards content, limited series |
-| **Meaning-Led Content** | PERMA Meaning + Identity | LinkedIn, purpose-driven brands |
-| **Balanced Engagement** | No dominant dimension | Broad-appeal content |
+- **Dimensions that differ** by at least `--threshold` points (default 10), with the cues found only in A or only in B.
+- **Tone difference** (VADER compound), when it is at least 0.25.
+- **Gain vs. loss wording** (an *equivalency* frame): "protects you" vs. "you risk missing". Tversky & Kahneman (1981) showed that this kind of wording can shift choices.
 
-*High-performing OTT content typically stacks 3+ dimensions above 40. The most shareable content relies on Arousal + Curiosity Gap, while content that builds loyal audiences prioritizes Narrative Transport and PERMA Wellbeing.*
+```bash
+python main.py --compare \
+  "Getting your flu shot protects you and your family." \
+  "If you skip your flu shot, you risk missing work. Don't wait until it's too late."
+```
+
+The command writes `output/framing_report.md` and an overlaid radar chart, `output/framing_comparison.png`. Use it as a structured checklist for editors or to form hypotheses. Whether a framing works better can only be learned by testing it with real audiences.
 
 ---
 
-## Quick start
+## Install, run, test
 
 ```bash
 git clone https://github.com/Neckr0ik/content-psychology-analyzer.git
 cd content-psychology-analyzer
 pip install -r requirements.txt
-python main.py
+
+python main.py                                   # 8 bundled samples -> charts + report in output/
+python main.py --text "Your synopsis" --type "OTT Series"
+python main.py --compare "Wording A" "Wording B" # framing comparison
+python main.py --framing-demo                    # bundled framing pairs
+python main.py --no-charts                       # skip PNGs
+
+pytest -q                                        # offline test suite
 ```
 
-Analyze your own content:
-
-```bash
-python main.py --text "Your series description or headline" --type "OTT Series"
-```
-
-Runtime: ~4 seconds for the full 8-sample batch.
-
----
+Python 3.11+. CI runs the tests on Python 3.11 and 3.12 (`.github/workflows/tests.yml`).
 
 ## Architecture
 
 ```
 content-psychology-analyzer/
-├── main.py               # CLI entry point, batch runner
+├── main.py            # CLI: batch, single text, --compare, --framing-demo
 ├── src/
-│   ├── frameworks.py     # 7 psychological dimensions + theory citations + engagement profiles
-│   ├── scorer.py         # Per-dimension scoring + profile classification + recommendations
-│   ├── reporter.py       # Radar charts, dimension bars, ranking chart, markdown report
-│   └── samples.py        # 8 content samples: OTT, news, LinkedIn, kids, sports, marketing
-└── output/               # Generated charts and report (git-ignored)
+│   ├── frameworks.py  # dimensions, theory citations, keyword lists, profile types
+│   ├── scorer.py      # whole-word matching, per-dimension scoring, profiles, recommendations
+│   ├── framing.py     # two-wording comparison (emphasis + gain/loss frames)
+│   ├── reporter.py    # radar/bar/ranking charts, markdown reports
+│   └── samples.py     # illustrative sample texts and framing pairs (fictional)
+└── tests/
 ```
 
----
+## Limitations
 
-## Scoring methodology
-
-Each dimension has a custom scorer reflecting the specific mechanism it measures:
-
-```python
-# Emotional Arousal: VADER + keyword lexicon
-arousal = keyword_score * 0.45 + abs(vader_compound) * 100 * 0.40 + blend * 0.15
-
-# Social Proof: keywords + number detection (e.g., "4 million viewers")
-social = keyword_score + min(numeric_signals * 15, 30)
-
-# Narrative Transport: story markers + protagonist presence + conflict density
-narrative = story_score * 0.50 + protagonist_count * 0.25 + conflict_score * 0.25
-
-# PERMA: scores all 5 pillars independently + breadth bonus for multi-pillar content
-perma = avg(P, E, R, M, A) + active_pillar_count * 8
-```
-
----
-
-## Output charts
-
-| Chart | Description |
-|---|---|
-| `radar_*.png` | Per-content radar chart across all 7 dimensions |
-| `dimensions_comparison.png` | Grouped bar chart: all samples × all dimensions |
-| `engagement_ranking.png` | Horizontal bar chart ranking by overall engagement score |
-| `analysis_report.md` | Full report with dimension scores, profile types, and recommendations |
-
----
-
-## Industry context
-
-This tool operationalizes the content strategy decisions that media executives make intuitively after years of experience. By formalizing the psychological mechanisms into measurable signals, it enables:
-
-- **Pre-publish scoring** to forecast engagement before commissioning or releasing content
-- **Competitive analysis** by scoring competitor content against the same dimensions
-- **A/B testing guidance** by identifying which psychological dimensions a title or description is underserving
-- **Genre benchmarking** to understand what psychological profile different content categories tend toward
-
----
+- **A heuristic, not a measurement.** Scores count cues in the wording, using hand-picked keyword lists, fixed weights and VADER. They have not been calibrated against engagement data and do not predict views, clicks or sharing.
+- **English only.** The keyword lists and VADER assume English text.
+- **No context.** Sarcasm, negation ("not exclusive"), visuals, audio, brand and placement are all ignored.
+- **The weights and thresholds are design choices.** These include the ×400 coverage scale, the dimension weights and the profile cut-offs. Change them in `src/frameworks.py` and `src/scorer.py` to fit your own data.
+- **The sample texts are fictional.** Any figures inside them (for example "98% of families") are part of the made-up copy, not real statistics.
 
 ## References
 
-- Russell, J. A. (1980). A circumplex model of affect. *Journal of Personality and Social Psychology, 39*(6).
+- Berger, J. & Milkman, K. L. (2012). What makes online content viral? *Journal of Marketing Research, 49*(2), 192–205.
+- Chong, D. & Druckman, J. N. (2007). Framing theory. *Annual Review of Political Science, 10*, 103–126.
+- Cialdini, R. B. (1984). *Influence: The Psychology of Persuasion.* William Morrow.
+- Green, M. C. & Brock, T. C. (2000). The role of transportation in the persuasiveness of public narratives. *Journal of Personality and Social Psychology, 79*(5), 701–721.
+- Kahneman, D. & Tversky, A. (1979). Prospect theory. *Econometrica, 47*(2), 263–291.
 - Loewenstein, G. (1994). The psychology of curiosity. *Psychological Bulletin, 116*(1), 75–98.
-- Cialdini, R. B. (1984). *Influence: The Psychology of Persuasion.* Harper Business.
-- Green, M. C. & Brock, T. C. (2000). The role of transportation. *Journal of Personality and Social Psychology, 79*(5).
-- Markus, H. & Wurf, E. (1987). The dynamic self-concept. *Annual Review of Psychology, 38*.
+- Markus, H. & Wurf, E. (1987). The dynamic self-concept. *Annual Review of Psychology, 38*, 299–337.
+- Russell, J. A. (1980). A circumplex model of affect. *Journal of Personality and Social Psychology, 39*(6), 1161–1178.
 - Seligman, M. E. P. (2011). *Flourish.* Free Press.
-- Kahneman, D. & Tversky, A. (1979). Prospect Theory. *Econometrica, 47*(2), 263–291.
-
----
-
-## Skills demonstrated
-
-`Python` · `Applied Psychology` · `Content Strategy` · `OTT/Media Analytics` · `NLP (VADER)` · `Positive Psychology (PERMA)` · `Behavioral Science` · `Matplotlib` · `Data Visualization`
-
----
+- Tversky, A. & Kahneman, D. (1981). The framing of decisions and the psychology of choice. *Science, 211*(4481), 453–458.
 
 ## License
 

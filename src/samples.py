@@ -80,3 +80,19 @@ SAMPLES = {
         ),
     },
 }
+
+
+# Pairs of wordings of the *same* message, for the framing comparison demo.
+FRAMING_PAIRS = {
+    "Vaccination reminder": (
+        "Getting your flu shot this month protects you and your family and helps keep "
+        "your community healthier this winter.",
+        "If you skip your flu shot this month, you risk missing work, and you could pass "
+        "the virus to the people you love. Don't wait until it's too late.",
+    ),
+    "Streaming series launch": (
+        "A new eight-episode drama about a family-run newspaper. All episodes available Friday.",
+        "The award-winning drama everyone is talking about. What really happened behind the "
+        "headlines? Watch the world premiere Friday — limited series, only on our platform.",
+    ),
+}
