@@ -18,13 +18,17 @@ Real output of `python main.py --no-charts` (excerpt):
   Thriller Drama (OTT)  [Streaming Series]
   [########            ] 41/100  |  Prestige Signal
   Top dimensions: Social:65 | Arousal:30 | Narrative:28
+  Tip: Open with a provocative question or withhold key information to create an information...
 
   LinkedIn Resilience Post  [Social Media (Professional)]
   [##########          ] 55/100  |  Community Builder
   Top dimensions: Identity:74 | PERMA:54 | Arousal:35
+  Tip: Open with a provocative question or withhold key information to create an information...
 
   Late Night Talk Show  [Entertainment / Talk]
   [############        ] 63/100  |  Curiosity Engine
+  Top dimensions: Curiosity:80 | Identity:64 | Arousal:46
+  Tip: Introduce a protagonist or story arc — even a single character's journey gives the...
 ```
 
 Framing comparison, `python main.py --framing-demo` (excerpt):
@@ -58,19 +62,23 @@ The scores show cue density on a 0–100 scale. They are not predicted engagemen
 | **PERMA Wellbeing** | Seligman (2011) | Words for the five PERMA pillars, plus a bonus for covering several |
 | **Scarcity / Exclusivity** | Kahneman & Tversky (1979) loss aversion | Premiere, exclusive, limited, first look |
 
-Keywords match as **whole words or phrases**, so "us" does not match "because" and "hit" does not match "white".
+Keywords match as **whole words or phrases**, so "us" does not match "because" and "hit" does not match "white". Text is NFKC-normalised and curly quotes are folded to straight ones first, so "won’t" matches "won't".
 
 ## Profile types
 
+"Top" and "second" refer to the highest-scoring dimensions among those scoring above 10. Rules are checked in this order and the first match wins:
+
 | Profile | Rule (on the scores above) |
 |:---|:---|
-| Viral Emotion Driver | Arousal is the top dimension and > 55 |
+| Viral Emotion Driver | Arousal is top and > 55 |
 | Curiosity Engine | Curiosity Gap is top and > 45 |
 | Narrative Immersive | Narrative Transport is top and > 45 |
-| Meaning-Led Content | PERMA top, Identity second |
-| Community Builder | Identity top, PERMA second |
-| Prestige Signal | Social Proof or Scarcity is top |
-| Balanced Engagement | none of the above |
+| Meaning-Led Content | PERMA is top, and Identity is second or no other dimension is above 10 |
+| Community Builder | Identity is top, and PERMA is second or no other dimension is above 10 |
+| Prestige Signal | Social Proof or Scarcity is top (any score above 10) |
+| Balanced Engagement | none of the above, including when no dimension is above 10 |
+
+The overall score is the mean of the three highest dimension scores. That is a design choice (most texts use two or three mechanisms and score 0 on the rest), not an empirical result.
 
 The profile names are labels for score patterns. They are not validated audience segments.
 
@@ -80,7 +88,7 @@ The profile names are labels for score patterns. They are not validated audience
 
 Chong & Druckman (2007) define a frame by the **considerations a message emphasises**. Two wordings of the same facts can make different considerations salient and so change how people weigh an issue. `--compare` treats each dimension as one family of considerations and reports:
 
-- **Dimensions that differ** by at least `--threshold` points (default 10), with the cues found only in A or only in B.
+- **Dimensions that differ** by at least `--threshold` points (default 10), with the keyword cues found only in A or only in B (derived signals such as VADER tone or audience-number counts affect the score but are not listed as cues).
 - **Tone difference** (VADER compound), when it is at least 0.25.
 - **Gain vs. loss wording** (an *equivalency* frame): "protects you" vs. "you risk missing". Tversky & Kahneman (1981) showed that this kind of wording can shift choices.
 

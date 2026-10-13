@@ -12,6 +12,7 @@ suggests edits. It describes the text; it does not measure audience response.
 
 import argparse
 import sys
+import textwrap
 
 from src.samples import SAMPLES, FRAMING_PAIRS
 from src.scorer import score, score_batch
@@ -31,7 +32,7 @@ def print_result(result):
     print(f"  Top dimensions: {' | '.join(top3)}")
 
     if result.recommendations:
-        print(f"  Tip: {result.recommendations[0][:90]}")
+        print(f"  Tip: {textwrap.shorten(result.recommendations[0], 90, placeholder='...')}")
 
 
 def print_comparison(cmp):

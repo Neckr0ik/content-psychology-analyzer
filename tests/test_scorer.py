@@ -45,3 +45,25 @@ def test_dimension_responds_to_its_cues(dim, text):
 def test_deterministic():
     text = SAMPLES["News Headline"]["text"]
     assert score(text).overall_score == score(text).overall_score
+
+
+def test_audience_number_signal_names_the_unit():
+    r = score("Loved by 4 million viewers and 300 thousand fans.")
+    sigs = r.dimensions["social_proof"].signals
+    assert "million count" in sigs and "thousand count" in sigs
+    assert "m count" not in sigs and "t count" not in sigs
+
+
+def test_curly_quotes_and_nfkc_are_normalised():
+    straight = score("You won't believe what happened.")
+    curly = score("You won’t believe what happened.")
+    assert "you won't believe" in curly.dimensions["curiosity_gap"].cues
+    assert curly.dimensions["curiosity_gap"].score == straight.dimensions["curiosity_gap"].score
+    fullwidth = score("Ｅｘｃｌｕｓｉｖｅ premiere")  # "Exclusive"
+    assert "exclusive" in fullwidth.dimensions["scarcity_exclusivity"].cues
+
+
+def test_cues_exclude_derived_signals():
+    r = score("Loved by 4 million viewers. An amazing, thrilling hero's journey!")
+    for d in r.dimensions.values():
+        assert not any("VADER" in c or "count" in c or "marker" in c for c in d.cues)
