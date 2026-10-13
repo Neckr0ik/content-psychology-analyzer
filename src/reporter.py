@@ -4,20 +4,23 @@ Visualization and report generation for content psychology analysis.
 
 from __future__ import annotations
 import os
+import re
 from datetime import datetime
 from typing import List
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 import numpy as np
 
 from .scorer import ContentScore
 from .frameworks import ENGAGEMENT_DIMENSIONS, CONTENT_PROFILE_TYPES
 
 OUTPUT_DIR = "output"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+
+def _ensure_dir(filename: str) -> None:
+    os.makedirs(os.path.dirname(filename) or ".", exist_ok=True)
 
 
 # ── Per-item radar chart ──────────────────────────────────────────────────────
@@ -61,8 +64,9 @@ def plot_radar(result: ContentScore, filename: str = None) -> str:
     )
 
     if filename is None:
-        safe = result.label.lower().replace(" ", "_").replace("/", "_")[:30]
+        safe = re.sub(r"[^a-z0-9]+", "_", result.label.lower()).strip("_")[:30]
         filename = os.path.join(OUTPUT_DIR, f"radar_{safe}.png")
+    _ensure_dir(filename)
     plt.tight_layout()
     plt.savefig(filename, dpi=130, bbox_inches="tight", facecolor=fig.get_facecolor())
     plt.close()
@@ -108,6 +112,7 @@ def plot_dimension_bars(results: List[ContentScore], filename: str = None) -> st
 
     if filename is None:
         filename = os.path.join(OUTPUT_DIR, "dimensions_comparison.png")
+    _ensure_dir(filename)
     plt.tight_layout()
     plt.savefig(filename, dpi=130, bbox_inches="tight", facecolor=fig.get_facecolor())
     plt.close()
@@ -143,6 +148,7 @@ def plot_ranking(results: List[ContentScore], filename: str = None) -> str:
 
     if filename is None:
         filename = os.path.join(OUTPUT_DIR, "engagement_ranking.png")
+    _ensure_dir(filename)
     plt.tight_layout()
     plt.savefig(filename, dpi=130, bbox_inches="tight", facecolor=fig.get_facecolor())
     plt.close()
@@ -205,7 +211,94 @@ def write_report(results: List[ContentScore], filename: str = None) -> str:
 
         lines += ["", "---", ""]
 
+    _ensure_dir(filename)
     with open(filename, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
+    return filename
+
+
+# ── Framing comparison (two wordings of one message) ─────────────────────────
+
+def plot_framing_radar(cmp, filename: str = None) -> str:
+    dims = list(cmp.deltas.values())
+    labels = [cmp.result_a.dimensions[d.dimension_id].short for d in dims]
+    n = len(labels)
+    angles = np.linspace(0, 2 * np.pi, n, endpoint=False).tolist()
+    closed = angles + angles[:1]
+
+    fig, ax = plt.subplots(figsize=(7, 7), subplot_kw=dict(polar=True))
+    fig.patch.set_facecolor("#0D1117")
+    ax.set_facecolor("#161B22")
+    for scores, color, name in [([d.score_a for d in dims], "#3498DB", cmp.label_a),
+                                ([d.score_b for d in dims], "#E67E22", cmp.label_b)]:
+        ax.plot(closed, scores + scores[:1], color=color, linewidth=2, label=name)
+        ax.fill(closed, scores + scores[:1], color=color, alpha=0.18)
+
+    ax.set_ylim(0, 100)
+    ax.set_yticks([25, 50, 75, 100])
+    ax.set_yticklabels(["25", "50", "75", "100"], color="#8B949E", fontsize=7)
+    ax.set_xticks(angles)
+    ax.set_xticklabels(labels, color="#C9D1D9", fontsize=9)
+    ax.grid(color="#30363D", linewidth=0.8)
+    ax.spines["polar"].set_color("#30363D")
+    ax.legend(loc="upper right", bbox_to_anchor=(1.25, 1.1), fontsize=8,
+              facecolor="#161B22", edgecolor="#30363D", labelcolor="#C9D1D9")
+    ax.set_title("Framing comparison (heuristic emphasis scores)", color="#E6EDF3",
+                 fontsize=10, fontweight="bold", pad=20)
+
+    if filename is None:
+        filename = os.path.join(OUTPUT_DIR, "framing_comparison.png")
+    _ensure_dir(filename)
+    plt.tight_layout()
+    plt.savefig(filename, dpi=130, bbox_inches="tight", facecolor=fig.get_facecolor())
+    plt.close()
+    return filename
+
+
+def write_framing_report(cmp, filename: str = None) -> str:
+    from .framing import CAVEAT
+
+    if filename is None:
+        filename = os.path.join(OUTPUT_DIR, "framing_report.md")
+    lines = [
+        "# Message Framing Comparison",
+        f"*Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}*",
+        "",
+        f"> {CAVEAT}",
+        "",
+        f"**{cmp.label_a}:** {cmp.result_a.text}",
+        "",
+        f"**{cmp.label_b}:** {cmp.result_b.text}",
+        "",
+        "## Findings",
+        "",
+    ]
+    lines += [f"- {f}" for f in cmp.findings]
+    lines += [
+        "",
+        f"## Dimension scores (difference threshold: {cmp.threshold:.0f} pts)",
+        "",
+        f"| Dimension | {cmp.label_a} | {cmp.label_b} | Δ (B−A) | Cues only in A | Cues only in B |",
+        "|:---|:---:|:---:|:---:|:---|:---|",
+    ]
+    for d in sorted(cmp.deltas.values(), key=lambda x: abs(x.delta), reverse=True):
+        flag = " (differs)" if abs(d.delta) >= cmp.threshold else ""
+        lines.append(f"| {d.label}{flag} | {d.score_a:.0f} | {d.score_b:.0f} | {d.delta:+.0f} | "
+                     f"{', '.join(d.only_in_a[:4])} | {', '.join(d.only_in_b[:4])} |")
+    lines += [
+        "",
+        f"**Tone (VADER compound):** {cmp.result_a.vader_scores['compound']:+.2f} → "
+        f"{cmp.result_b.vader_scores['compound']:+.2f}",
+        "",
+        f"**Gain/loss wording:** {cmp.label_a}: {cmp.frame_a} {cmp.gain_loss_a} · "
+        f"{cmp.label_b}: {cmp.frame_b} {cmp.gain_loss_b}",
+        "",
+        "---",
+        "Framing theory: Chong, D. & Druckman, J. N. (2007). Framing theory. "
+        "*Annual Review of Political Science, 10*, 103–126.",
+    ]
+    _ensure_dir(filename)
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
     return filename

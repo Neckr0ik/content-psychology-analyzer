@@ -2,17 +2,23 @@
 Content Psychology Analyzer
 Run:  python main.py
 Run on custom text:  python main.py --text "Your content here" --type "OTT Series"
+Compare two wordings: python main.py --compare "Wording A" "Wording B"
+Framing demo:         python main.py --framing-demo
 
-Scores media content across seven psychological engagement dimensions,
-classifies engagement profile type, and generates actionable recommendations
-for content strategists, OTT platforms, and media teams.
+Scores media content across seven psychological engagement dimensions with
+transparent keyword/lexicon heuristics, classifies an engagement profile, and
+suggests edits. It describes the text; it does not measure audience response.
 """
 
 import argparse
-from src.samples import SAMPLES
+import sys
+
+from src.samples import SAMPLES, FRAMING_PAIRS
 from src.scorer import score, score_batch
-from src.reporter import plot_radar, plot_dimension_bars, plot_ranking, write_report
-from src.frameworks import ENGAGEMENT_DIMENSIONS, CONTENT_PROFILE_TYPES
+from src.framing import compare, CAVEAT
+from src.reporter import (plot_radar, plot_dimension_bars, plot_ranking, write_report,
+                          plot_framing_radar, write_framing_report)
+from src.frameworks import CONTENT_PROFILE_TYPES
 
 
 def print_result(result):
@@ -28,17 +34,51 @@ def print_result(result):
         print(f"  Tip: {result.recommendations[0][:90]}")
 
 
-def main():
+def print_comparison(cmp):
+    print(f"\n  {cmp.label_a}: {cmp.result_a.text[:90]}")
+    print(f"  {cmp.label_b}: {cmp.result_b.text[:90]}")
+    print(f"\n  {'Dimension':<24}{'A':>6}{'B':>6}{'B-A':>7}")
+    for d in sorted(cmp.deltas.values(), key=lambda x: abs(x.delta), reverse=True):
+        flag = "  <- differs" if abs(d.delta) >= cmp.threshold else ""
+        print(f"  {d.label:<24}{d.score_a:>6.0f}{d.score_b:>6.0f}{d.delta:>+7.0f}{flag}")
+    print("\n  Findings:")
+    for f in cmp.findings:
+        print(f"    - {f}")
+
+
+def run_comparisons(pairs, content_type, threshold, charts):
+    for i, (name, (a, b)) in enumerate(pairs.items(), 1):
+        print(f"\n[{name}]")
+        cmp = compare(a, b, label_a="A", label_b="B", content_type=content_type, threshold=threshold)
+        print_comparison(cmp)
+        suffix = "" if len(pairs) == 1 else f"_{i}"
+        if charts:
+            print(f"\n  Chart  -> {plot_framing_radar(cmp, f'output/framing_comparison{suffix}.png')}")
+        print(f"  Report -> {write_framing_report(cmp, f'output/framing_report{suffix}.md')}")
+    print(f"\nNote: {CAVEAT}")
+
+
+def main(argv=None):
     parser = argparse.ArgumentParser(description="Content Psychology Analyzer")
     parser.add_argument("--text", "-t", type=str, help="Analyze a custom text string")
     parser.add_argument("--type", type=str, default="General", help="Content type label")
+    parser.add_argument("--compare", nargs=2, metavar=("TEXT_A", "TEXT_B"),
+                        help="Compare two wordings of the same message (framing comparison)")
+    parser.add_argument("--framing-demo", action="store_true", help="Run the bundled framing pairs")
+    parser.add_argument("--threshold", type=float, default=10.0,
+                        help="Points of difference for a dimension to count as different (default 10)")
     parser.add_argument("--no-charts", action="store_true", help="Skip chart generation")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     print("Content Psychology Analyzer")
     print("=" * 65)
-    print("Psychological engagement scoring for media and content strategy")
+    print("Heuristic psychological-engagement scoring for media content")
     print("=" * 65)
+
+    if args.compare or args.framing_demo:
+        pairs = {"Custom comparison": tuple(args.compare)} if args.compare else FRAMING_PAIRS
+        run_comparisons(pairs, args.type, args.threshold, charts=not args.no_charts)
+        return 0
 
     if args.text:
         result = score(args.text, label="Custom Content", content_type=args.type)
@@ -49,7 +89,7 @@ def main():
         print(f"\n  Recommendations:")
         for rec in result.recommendations:
             print(f"    - {rec}")
-        return
+        return 0
 
     print("\n[1/3] Scoring content samples across 7 dimensions...")
     results = score_batch(SAMPLES)
@@ -85,18 +125,18 @@ def main():
             print(f"    {desc}")
 
     print()
-    print("KEY INSIGHT")
+    print("HOW TO READ THIS")
     print("-" * 65)
-    print("High-performing OTT content typically stacks 3+ dimensions above 40.")
-    print("The most shareable content (news, social posts) relies on Emotional")
-    print("Arousal + Curiosity Gap, while content that builds loyal audiences")
-    print("(limited series, documentaries) prioritizes Narrative Transport and")
-    print("PERMA Wellbeing — aligning with what viewers return for, not just click.")
+    print("Scores count theory-linked cues in the wording (keywords, VADER tone,")
+    print("questions, numbers). They show which mechanisms a text leans on, not")
+    print("how an audience will respond. Validate with real audience data.")
     print()
     print("All charts and report saved to output/")
     print()
-    print("TIP: Run  python main.py --text 'your content' --type 'OTT'  to score custom content.")
+    print("TIP: python main.py --text 'your content' --type 'OTT'   score custom content")
+    print("     python main.py --compare 'wording A' 'wording B'    compare two framings")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
