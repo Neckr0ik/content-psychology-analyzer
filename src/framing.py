@@ -112,7 +112,8 @@ def _findings(cmp: FramingComparison) -> List[str]:
     for d in cmp.differing:
         stronger, weaker = (cmp.label_b, cmp.label_a) if d.delta > 0 else (cmp.label_a, cmp.label_b)
         cues = d.only_in_b if d.delta > 0 else d.only_in_a
-        cue_txt = f" (cues only in {stronger}: {', '.join(cues[:5])})" if cues else ""
+        cue_txt = (f" (cues only in {stronger}: {', '.join(cues[:5])})" if cues
+                   else " (no keyword cue differs; the gap comes from tone, question or count signals)")
         out.append(f"{d.label}: {stronger} emphasises this more than {weaker} "
                    f"by {abs(d.delta):.0f} pts{cue_txt}. [{d.theory}]")
     if abs(cmp.valence_delta) >= VALENCE_THRESHOLD:
@@ -142,7 +143,9 @@ def compare(text_a: str, text_b: str, label_a: str = "Version A", label_b: str =
     deltas: Dict[str, DimensionDelta] = {}
     for dim_id, da in a.dimensions.items():
         db = b.dimensions[dim_id]
-        sig_a, sig_b = da.signals, db.signals
+        # compare matched keyword cues only; derived signals such as "VADER ... (0.62)" or
+        # "2 protagonist marker(s)" differ in their numbers and would show up as false "cues"
+        sig_a, sig_b = da.cues, db.cues
         deltas[dim_id] = DimensionDelta(
             dimension_id=dim_id, label=da.label, theory=da.theory,
             score_a=da.score, score_b=db.score,

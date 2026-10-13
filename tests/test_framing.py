@@ -47,3 +47,13 @@ def test_threshold_controls_sensitivity():
 
 def test_caveat_is_honest():
     assert "does not measure or predict" in CAVEAT
+
+
+def test_numeric_signals_are_not_reported_as_cues():
+    # both versions trigger a VADER signal with different numbers; that is not a wording cue
+    cmp = compare("An amazing, wonderful triumph!", "An amazing, wonderful, brilliant triumph!")
+    arousal = cmp.deltas["emotional_arousal"]
+    assert not any("VADER" in c for c in arousal.only_in_a + arousal.only_in_b)
+    cmp = compare("She left.", "She said he and they knew his secret, but her plan failed.")
+    narr = cmp.deltas["narrative_transport"]
+    assert not any("marker" in c for c in narr.only_in_a + narr.only_in_b)

@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Dict, List
 import re
+import unicodedata
 
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from .frameworks import ENGAGEMENT_DIMENSIONS, CONTENT_PROFILE_TYPES
@@ -21,9 +22,10 @@ class DimensionScore:
     label: str
     short: str
     score: float          # 0-100
-    signals: List[str]    # matched keywords / signals
+    signals: List[str]    # matched keywords plus derived signals (VADER, counts) for display
     theory: str
     color: str
+    cues: List[str] = field(default_factory=list)   # matched keywords/phrases only
 
 
 @dataclass
@@ -40,7 +42,13 @@ class ContentScore:
     word_count: int
 
 
+_QUOTE_FOLD = str.maketrans({"\u2019": "'", "\u2018": "'", "\u201c": '"', "\u201d": '"'})
+
+
 def _norm(text: str) -> str:
+    """NFKC-normalise, fold curly quotes to ASCII, lowercase and collapse whitespace,
+    so "won’t" matches the keyword "won't" and full-width letters match ASCII ones."""
+    text = unicodedata.normalize("NFKC", text).translate(_QUOTE_FOLD)
     return re.sub(r"\s+", " ", text.lower().strip())
 
 
@@ -85,14 +93,15 @@ def _score_emotional_arousal(text: str, vader: dict) -> DimensionScore:
     )
     combined = min(combined * dim["weight"], 100)
 
-    signals = pos_matched + neg_matched
+    cues = pos_matched + neg_matched
+    signals = list(cues)
     if vader["compound"] > 0.5:
         signals.append(f"VADER high-positive compound ({vader['compound']:.2f})")
     elif vader["compound"] < -0.3:
         signals.append(f"VADER negative compound ({vader['compound']:.2f})")
 
     return DimensionScore("emotional_arousal", dim["label"], dim["short"],
-                          round(combined, 1), signals, dim["theory"], dim["color"])
+                          round(combined, 1), signals, dim["theory"], dim["color"], cues)
 
 
 def _score_curiosity_gap(text: str) -> DimensionScore:
@@ -102,7 +111,7 @@ def _score_curiosity_gap(text: str) -> DimensionScore:
     score += min(question_count * 8, 20)
     score = min(score * dim["weight"], 100)
     return DimensionScore("curiosity_gap", dim["label"], dim["short"],
-                          round(score, 1), matched, dim["theory"], dim["color"])
+                          round(score, 1), matched, dim["theory"], dim["color"], list(matched))
 
 
 def _score_social_proof(text: str) -> DimensionScore:
@@ -111,10 +120,11 @@ def _score_social_proof(text: str) -> DimensionScore:
     # Number presence ("4 million viewers", "3 Emmy Awards") is implicit social proof
     number_signals = re.findall(r"\b\d[\d,]*\s*(million|thousand|hundred|viewers|users|fans)", text)
     score += min(len(number_signals) * 15, 30)
-    matched += [f"{n[0]} count" for n in number_signals]
+    # findall with one group returns the group strings ("million", "viewers"), not tuples
+    signals = matched + [f"{n} count" for n in number_signals]
     score = min(score * dim["weight"], 100)
     return DimensionScore("social_proof", dim["label"], dim["short"],
-                          round(score, 1), matched, dim["theory"], dim["color"])
+                          round(score, 1), signals, dim["theory"], dim["color"], list(matched))
 
 
 def _score_narrative(text: str) -> DimensionScore:
@@ -129,11 +139,12 @@ def _score_narrative(text: str) -> DimensionScore:
         + conflict_score * 0.25
     )
     combined = min(combined * dim["weight"], 100)
-    signals = story_matched + conflict_matched
+    cues = story_matched + conflict_matched
+    signals = list(cues)
     if proto_count:
         signals.append(f"{proto_count} protagonist marker(s)")
     return DimensionScore("narrative_transport", dim["label"], dim["short"],
-                          round(combined, 1), signals, dim["theory"], dim["color"])
+                          round(combined, 1), signals, dim["theory"], dim["color"], cues)
 
 
 def _score_identity(text: str) -> DimensionScore:
@@ -145,7 +156,7 @@ def _score_identity(text: str) -> DimensionScore:
     combined = min((sp_score * 0.5 + asp_score * 0.3 + com_score * 0.2) * dim["weight"], 100)
     signals = sp_matched + asp_matched + com_matched
     return DimensionScore("identity_resonance", dim["label"], dim["short"],
-                          round(combined, 1), signals, dim["theory"], dim["color"])
+                          round(combined, 1), signals, dim["theory"], dim["color"], list(signals))
 
 
 def _score_perma(text: str) -> DimensionScore:
@@ -160,7 +171,7 @@ def _score_perma(text: str) -> DimensionScore:
     breadth_bonus = sum(1 for s in subscores.values() if s > 5) * 8
     combined = min((sum(subscores.values()) / len(subscores) + breadth_bonus) * dim["weight"], 100)
     return DimensionScore("perma_wellbeing", dim["label"], dim["short"],
-                          round(combined, 1), all_signals, dim["theory"], dim["color"])
+                          round(combined, 1), all_signals, dim["theory"], dim["color"], list(all_signals))
 
 
 def _score_scarcity(text: str) -> DimensionScore:
@@ -168,7 +179,7 @@ def _score_scarcity(text: str) -> DimensionScore:
     score, matched = _kw_score(text, dim["keywords"])
     score = min(score * dim["weight"], 100)
     return DimensionScore("scarcity_exclusivity", dim["label"], dim["short"],
-                          round(score, 1), matched, dim["theory"], dim["color"])
+                          round(score, 1), matched, dim["theory"], dim["color"], list(matched))
 
 
 # ── Profile classification ────────────────────────────────────────────────────
@@ -241,9 +252,9 @@ def score(text: str, label: str = "Content", content_type: str = "General") -> C
     dominant = sorted(dimensions.values(), key=lambda d: d.score, reverse=True)
     dominant_ids = [d.dimension_id for d in dominant[:3] if d.score > 10]
 
-    # Overall score: mean of top-3 dimensions, mirroring how platforms measure content
-    # performance — the strongest 2-3 engagement signals predict watch-time, not the average
-    # across all possible dimensions (most content legitimately scores 0 on 3-4 dimensions).
+    # Overall score: mean of the top-3 dimensions. This is a design choice, not an empirical
+    # finding: most texts lean on two or three mechanisms and score 0 on the rest, so averaging
+    # all seven would mostly measure how many dimensions a text ignores.
     top3_scores = sorted([d.score for d in dimensions.values()], reverse=True)[:3]
     overall = min(sum(top3_scores) / 3, 100)
 
